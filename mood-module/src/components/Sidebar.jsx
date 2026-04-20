@@ -4,15 +4,23 @@ import { useNavigate, useLocation } from "react-router-dom";
 import {
   HomeIcon,
   CalendarIcon,
+  BellIcon,
+  ClockIcon,
   ChartBarIcon,
   UserIcon,
   BookOpenIcon,
   Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
 } from "@heroicons/react/24/outline";
+import { getCurrentUserId } from "../config";
+import { fetchReminderNotificationCounts } from "../api/reminderApi";
 
-const Sidebar = ({ activePage, collapsed, setCollapsed }) => {
+const Sidebar = ({ activePage, collapsed, setCollapsed, strictActive = false }) => {
   const [scrolled, setScrolled] = useState(false);
+  const [counts, setCounts] = useState({
+    pendingRemindersCount: 0,
+    unreadNotificationsCount: 0,
+  });
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -24,21 +32,56 @@ const Sidebar = ({ activePage, collapsed, setCollapsed }) => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  useEffect(() => {
+    const userId = getCurrentUserId();
+
+    const loadCounts = async () => {
+      try {
+        const data = await fetchReminderNotificationCounts(userId);
+        setCounts({
+          pendingRemindersCount: data?.pendingRemindersCount || 0,
+          unreadNotificationsCount: data?.unreadNotificationsCount || 0,
+        });
+      } catch (error) {
+        setCounts({
+          pendingRemindersCount: 0,
+          unreadNotificationsCount: 0,
+        });
+      }
+    };
+
+    loadCounts();
+    const intervalId = window.setInterval(loadCounts, 60000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
   // Split links into main and bottom sections
   const mainLinks = [
-    { name: "Dashboard", icon: HomeIcon, path: "/dashboard" },
-    { name: "Book Appointment", icon: CalendarIcon },
-    { name: "Appointment History", icon: BookOpenIcon, path: "/history" },
-    { name: "Report Analysis", icon: ChartBarIcon },
-    { name: "Mood Track", icon: UserIcon },
-    { name: "Mood Fix", icon: UserIcon },
-    { name: "Journal Reading", icon: BookOpenIcon },
+    { name: "Dashboard", icon: HomeIcon, path: "/home" },
+    { name: "Book Appointment", icon: CalendarIcon, path: "/appointments/book" },
+    { name: "Appointment History", icon: BookOpenIcon, path: "/appointments/history" },
+    { name: "Report Analysis", icon: ChartBarIcon, path: "/reports" },
+    { name: "Mood Track", icon: UserIcon, path: "/dashboard" },
+    { name: "Mood Fix", icon: UserIcon, path: "/mood-fix" },
+    { name: "Reminders", icon: ClockIcon, path: "/reminders", badgeCount: counts.pendingRemindersCount },
+    { name: "Notifications", icon: BellIcon, path: "/notifications", badgeCount: counts.unreadNotificationsCount },
+    { name: "Journal Reading", icon: BookOpenIcon, path: "/journal" },
   ];
 
   const bottomLinks = [
-    { name: "Settings", icon: Cog6ToothIcon },
-    { name: "Logout", icon: ArrowRightOnRectangleIcon },
+    { name: "Settings", icon: Cog6ToothIcon, path: "/settings" },
+    { name: "Logout", icon: ArrowRightOnRectangleIcon, path: "/logout" },
   ];
+
+  const isLinkActive = (link) => {
+    if (strictActive) {
+      return activePage === link.name;
+    }
+    return activePage === link.name || location.pathname === link.path;
+  };
 
   return (
     <div
@@ -81,19 +124,31 @@ const Sidebar = ({ activePage, collapsed, setCollapsed }) => {
                 if (link.path) navigate(link.path);
               }}
               className={`relative flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 group ${
-                activePage === link.name || location.pathname === link.path
+                isLinkActive(link)
                   ? "bg-[#0967FF] shadow-lg" 
                   : "hover:bg-[#0967FF]/80"
               }`}
             >
               <link.icon className="w-6 h-6 min-w-[24px]" />
               {!collapsed && (
-                <span className="whitespace-nowrap font-medium">{link.name}</span>
+                <>
+                  <span className="whitespace-nowrap font-medium">{link.name}</span>
+                  {typeof link.badgeCount === "number" && (
+                    <span className="ml-auto inline-flex min-w-[24px] justify-center rounded-full bg-white/20 px-2 py-0.5 text-xs font-semibold text-white">
+                      {link.badgeCount}
+                    </span>
+                  )}
+                </>
               )}
               {collapsed && (
                 <div className="absolute left-full ml-2 bg-gray-900 text-white px-2 py-1 rounded text-sm opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-50">
                   {link.name}
                 </div>
+              )}
+              {collapsed && typeof link.badgeCount === "number" && link.badgeCount > 0 && (
+                <span className="absolute right-2 top-2 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold leading-none text-white">
+                  {link.badgeCount > 99 ? "99+" : link.badgeCount}
+                </span>
               )}
             </div>
           ))}
@@ -106,8 +161,11 @@ const Sidebar = ({ activePage, collapsed, setCollapsed }) => {
           {bottomLinks.map((link) => (
             <div
               key={link.name}
+              onClick={() => {
+                if (link.path) navigate(link.path);
+              }}
               className={`relative flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 group ${
-                activePage === link.name 
+                isLinkActive(link)
                   ? "bg-[#0967FF] shadow-lg" 
                   : "hover:bg-[#0967FF]/80"
               }`}

@@ -57,7 +57,7 @@ const Dashboard = () => {
 
   return (
     <div className="flex bg-gray-50 min-h-screen">
-      <Sidebar activePage="Dashboard" collapsed={collapsed} setCollapsed={setCollapsed} />
+      <Sidebar activePage="Mood Track" collapsed={collapsed} setCollapsed={setCollapsed} />
       <main className={`flex-1 transition-all duration-300 ${collapsed?"ml-20":"ml-64"} p-8`}>
         {showSuccess && <div className="fixed bottom-4 right-4 bg-green-500 text-white px-6 py-3 rounded-xl shadow-lg">Check-in completed!</div>}
 
@@ -99,7 +99,12 @@ const Dashboard = () => {
               description="See patterns & trends"
               onClick={() => navigate("/insights")}
             />
-            <QuickActionCard icon={MoodFixIcon} title="Mood Fix" description="Activities to feel better" />
+            <QuickActionCard
+              icon={MoodFixIcon}
+              title="Mood Fix"
+              description="Activities to feel better"
+              onClick={() => navigate("/mood-fix", { state: { showLatestOnly: true } })}
+            />
             <QuickActionCard
               icon={HistoryIcon}
               title="History"
