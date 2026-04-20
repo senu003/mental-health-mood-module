@@ -2,7 +2,8 @@
 
 import express from "express";
 import { 
-  createMood, 
+  createMood,
+  updateMood,
   getDashboard, 
   getWeekly, 
   getHistory,
@@ -13,6 +14,7 @@ import { asyncHandler } from "../middlewares/errorMiddleware.js";
 const router = express.Router();
 
 router.post("/", asyncHandler(createMood));
+router.patch("/:id", asyncHandler(updateMood));
 router.get("/dashboard/:userId", asyncHandler(getDashboard));
 router.get("/weekly/:userId", asyncHandler(getWeekly));
 router.get("/history/:userId", asyncHandler(getHistory));

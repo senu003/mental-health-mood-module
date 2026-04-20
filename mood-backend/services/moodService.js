@@ -24,8 +24,15 @@ const hasEnhancedInsightShape = (insight) => {
     hasSummary &&
     hasTrend &&
     Array.isArray(insight.factorInsights) &&
+    Array.isArray(insight.factorChanges) &&
     Array.isArray(insight.recommendations) &&
     Array.isArray(insight.dailyTrend) &&
+    insight.weeklyComparison &&
+    typeof insight.weeklyComparison === "object" &&
+    Array.isArray(insight.correlationInsights) &&
+    Array.isArray(insight.riskAlerts) &&
+    insight.dailyInsight &&
+    typeof insight.dailyInsight === "object" &&
     insight.metrics &&
     typeof insight.metrics === "object" &&
     Array.isArray(insight.patterns) &&
@@ -171,6 +178,9 @@ export const getMoodHistory = async (userId) => {
 // WEEKLY INSIGHTS (CURRENT VS PREVIOUS 7 DAYS)
 // ================================
 export const getWeeklyInsights = async (userId) => {
+  const now = new Date();
+  const todayKey = formatDate(now);
+
   const [existingInsight, latestEntry, entryCount] = await Promise.all([
     Insight.findOne({ userId }).lean(),
     Mood.findOne({ userId }).sort({ createdAt: -1 }).select({ createdAt: 1 }).lean(),
@@ -182,6 +192,7 @@ export const getWeeklyInsights = async (userId) => {
   if (
     existingInsight &&
     hasEnhancedInsightShape(existingInsight) &&
+    existingInsight.lastGeneratedDate === todayKey &&
     existingInsight.sourceEntryCount === entryCount &&
     ((existingInsight.sourceLastEntryAt === null && latestCreatedAt === null) ||
       (existingInsight.sourceLastEntryAt && latestCreatedAt &&
@@ -190,7 +201,6 @@ export const getWeeklyInsights = async (userId) => {
     return existingInsight;
   }
 
-  const now = new Date();
   const startWindow = new Date(now);
   startWindow.setDate(now.getDate() - 13);
   startWindow.setHours(0, 0, 0, 0);
@@ -216,7 +226,7 @@ export const getWeeklyInsights = async (userId) => {
     moodTrend: computed.overallTrend,
     moodChange: computed.overallChange,
     userId,
-    lastGeneratedDate: formatDate(now),
+    lastGeneratedDate: todayKey,
     sourceEntryCount: entryCount,
     sourceLastEntryAt: latestCreatedAt,
   };

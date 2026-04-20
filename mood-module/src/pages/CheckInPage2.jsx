@@ -26,6 +26,8 @@ const questionConfig = [
   { key: "focusLevel", label: "Rate your focus level" }
 ];
 
+const getSliderFillPercent = (value) => ((value - 1) / 9) * 100;
+
 const CheckInPage2 = () => {
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
@@ -92,6 +94,16 @@ const CheckInPage2 = () => {
 
       showAlert("success", "Check-in completed!");
 
+      // Reset current check-in values so a fresh session starts with defaults.
+      setLevels(defaultLevels);
+      setCurrentCheckIn({
+        mood: "",
+        note: "",
+        date: "",
+        levels: defaultLevels,
+      });
+      localStorage.removeItem("moodDraft");
+
       // Navigate to summary **before** clearing Zustand
       setTimeout(() => {
         navigate("/check-in/summary", {
@@ -104,7 +116,7 @@ const CheckInPage2 = () => {
             mentalHealthScore: submission?.mentalHealthScore,
             checkInStreak: submission?.checkInStreak,
             isFirstCheckInToday: submission?.isFirstCheckInToday,
-            checkInId: submission?.saved?._id || submission?.data?._id,
+            checkInId: submission?._id || submission?.saved?._id || submission?.data?._id,
           }
         });
       }, 1200);
@@ -117,14 +129,10 @@ const CheckInPage2 = () => {
   };
 
   return (
-    <div className="flex bg-[#f3f3f4] min-h-screen">
+    <div className="flex bg-gray-50 min-h-screen">
       <Sidebar activePage="Mood Track" collapsed={collapsed} setCollapsed={setCollapsed} />
 
-      <main
-        className={`flex-1 transition-all duration-300 ml-0 ${
-          collapsed ? "md:ml-20" : "md:ml-64"
-        } px-4 sm:px-6 py-6 sm:py-8`}
-      >
+      <main className={`flex-1 transition-all duration-300 ${collapsed ? "ml-20" : "ml-64"} p-8`}>
         {alert.show && (
           <div className={`fixed top-5 right-5 p-4 rounded-xl shadow-lg text-white z-[60]
             ${alert.type === "success" ? "bg-green-500" : "bg-red-500"}`}>
@@ -132,36 +140,30 @@ const CheckInPage2 = () => {
           </div>
         )}
 
-        <section className="mx-auto w-full max-w-[760px]">
-          <div className="mb-6 sm:mb-7">
-            <button
-              onClick={() => navigate(-1)}
-              className="inline-flex items-center gap-2 text-[15px] text-gray-700 hover:text-gray-900"
-            >
-              <span className="text-lg leading-none">&#8592;</span>
-              <span>Back</span>
-            </button>
-            <h1 className="mt-3 text-[30px] leading-none font-semibold text-[#171717]">Assesment Question</h1>
-            <p className="mt-1 text-sm text-gray-500">Help us understand your wellbeing</p>
+        <section className="w-full max-w-none">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-800">Daily Check-in</h1>
+            <p className="text-gray-500 mt-1">Help us understand your wellbeing</p>
           </div>
 
-          <div className="rounded-lg border border-[#dfdfe2] bg-white px-4 py-3 sm:px-5 sm:py-4 mb-5">
-            <div className="mb-2 flex items-center justify-between text-xs text-gray-500">
-              <span>Progress</span>
-              <span>3 of 3</span>
+          <div className="mb-8">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm font-medium text-gray-600">Progress</span>
+              <span className="text-sm font-medium text-[#0C5BD5]">2 of 2</span>
             </div>
-            <div className="h-[6px] w-full rounded-full bg-[#dedee1] overflow-hidden">
-              <div className="h-full w-full rounded-full bg-[#1f66e5]" />
+            <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div className="h-full bg-[#0C5BD5] rounded-full transition-all duration-500" style={{ width: "100%" }} />
             </div>
           </div>
 
-          <div className="space-y-3 sm:space-y-4">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="p-8 space-y-4">
             {questionConfig.map((question) => (
               <div
                 key={question.key}
-                className="rounded-lg border border-[#d9dadd] bg-white px-4 py-4 sm:px-6 sm:py-5"
+                className="rounded-xl border border-gray-200 bg-white px-6 py-5"
               >
-                <h2 className="text-[22px] font-medium leading-tight text-[#181818] mb-5">{question.label}</h2>
+                <h2 className="text-2xl font-semibold leading-tight text-gray-800 mb-5">{question.label}</h2>
 
                 <div className="mb-2 flex items-center justify-between text-[12px] text-gray-500">
                   <span>Not at all</span>
@@ -174,53 +176,57 @@ const CheckInPage2 = () => {
                   max="10"
                   value={levels[question.key]}
                   onChange={(e) => handleLevelChange(question.key, e.target.value)}
-                  className="w-full h-2 rounded-full bg-[#dbdcde] appearance-none cursor-pointer accent-[#1f66e5]
+                  style={{
+                    background: `linear-gradient(to right, #0C5BD5 0%, #0C5BD5 ${getSliderFillPercent(levels[question.key])}%, #dbdcde ${getSliderFillPercent(levels[question.key])}%, #dbdcde 100%)`
+                  }}
+                  className="w-full h-2 rounded-full bg-[#dbdcde] appearance-none cursor-pointer accent-[#0C5BD5]
                     [&::-webkit-slider-runnable-track]:h-2
                     [&::-webkit-slider-runnable-track]:rounded-full
-                    [&::-webkit-slider-runnable-track]:bg-[#dbdcde]
+                    [&::-webkit-slider-runnable-track]:bg-transparent
                     [&::-moz-range-track]:h-2
                     [&::-moz-range-track]:rounded-full
-                    [&::-moz-range-track]:bg-[#dbdcde]
+                    [&::-moz-range-track]:bg-transparent
                     [&::-webkit-slider-thumb]:appearance-none
                     [&::-webkit-slider-thumb]:mt-[-5px]
                     [&::-webkit-slider-thumb]:h-[18px]
                     [&::-webkit-slider-thumb]:w-[18px]
                     [&::-webkit-slider-thumb]:rounded-full
                     [&::-webkit-slider-thumb]:border
-                    [&::-webkit-slider-thumb]:border-[#1f66e5]
+                    [&::-webkit-slider-thumb]:border-[#0C5BD5]
                     [&::-webkit-slider-thumb]:bg-white
                     [&::-moz-range-thumb]:h-[18px]
                     [&::-moz-range-thumb]:w-[18px]
                     [&::-moz-range-thumb]:rounded-full
                     [&::-moz-range-thumb]:border
-                    [&::-moz-range-thumb]:border-[#1f66e5]
+                    [&::-moz-range-thumb]:border-[#0C5BD5]
                     [&::-moz-range-thumb]:bg-white"
                 />
 
                 <div className="mt-3 flex justify-center">
-                  <span className="inline-flex min-w-12 justify-center rounded-full bg-[#0c4cb3] px-4 py-[3px] text-xs font-medium text-white">
+                  <span className="inline-flex min-w-12 justify-center rounded-full bg-[#0C5BD5] px-4 py-[3px] text-xs font-medium text-white">
                     {levels[question.key]}/10
                   </span>
                 </div>
               </div>
             ))}
-          </div>
+            </div>
 
-          <div className="mt-6 flex items-center justify-between gap-3">
-            <button
-              onClick={() => navigate(-1)}
-              className="h-12 min-w-[150px] rounded-lg border border-[#1f66e5] bg-white px-8 text-sm font-medium text-[#1f66e5] hover:bg-[#f0f5ff]"
-            >
-              Back
-            </button>
+            <div className="px-8 py-6 border-t border-gray-100 flex items-center justify-between gap-3">
+              <button
+                onClick={() => navigate(-1)}
+                className="h-12 min-w-[150px] rounded-xl border border-[#0C5BD5] bg-white px-8 text-sm font-medium text-[#0C5BD5] hover:bg-[#f0f6ff]"
+              >
+                Back
+              </button>
 
-            <button
-              onClick={submitCheckIn}
-              disabled={loading}
-              className="h-12 min-w-[180px] rounded-lg bg-[#0c4cb3] px-8 text-sm font-semibold text-white hover:bg-[#0a429d] disabled:cursor-not-allowed disabled:opacity-70"
-            >
-                {loading ? "Saving..." : "Complete Check-in"}
-            </button>
+              <button
+                onClick={submitCheckIn}
+                disabled={loading}
+                className="h-12 min-w-[180px] rounded-xl bg-[#0C5BD5] px-8 text-sm font-semibold text-white hover:bg-[#0A4AB0] disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                  {loading ? "Saving..." : "Complete Check-in"}
+              </button>
+            </div>
           </div>
         </section>
       </main>

@@ -33,6 +33,7 @@ const normalizeMoodPayload = (body = {}) => {
     motivationLevel: body.motivationLevel ?? body.motivation,
     focusLevel: body.focusLevel ?? body.focus,
     socialInteraction: body.socialInteraction ?? body.social,
+    shareWithDoctor: Boolean(body.shareWithDoctor),
     createdAt: body.createdAt,
     tags: body.tags,
   };
@@ -51,10 +52,11 @@ export const createMood = async (req, res) => {
   }
 
   const { saved, mentalHealthScore } = await createMoodEntry(normalizedBody);
+  const savedDoc = typeof saved?.toObject === "function" ? saved.toObject() : saved;
   
   res.status(201).json(
     apiSuccess(
-      { ...saved, mentalHealthScore },
+      { ...savedDoc, mentalHealthScore },
       "Mood saved successfully"
     )
   );
@@ -76,6 +78,35 @@ export const getWeekly = async (req, res) => {
 export const getHistory = async (req, res) => {
   const history = await getMoodHistory(req.params.userId);
   res.json(apiSuccess(history.data, `Retrieved ${history.count} mood entries`));
+};
+
+// PATCH /api/moods/:id
+export const updateMood = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { shareWithDoctor } = req.body;
+
+    if (typeof shareWithDoctor !== 'boolean') {
+      return res.status(400).json(apiFail("shareWithDoctor must be a boolean", null));
+    }
+
+    const updateData = { shareWithDoctor };
+
+    const Mood = (await import("../models/mood.js")).default;
+    const updated = await Mood.findByIdAndUpdate(
+      id,
+      updateData,
+      { new: true, runValidators: true }
+    );
+
+    if (!updated) {
+      return res.status(404).json(apiFail("Mood entry not found", null));
+    }
+
+    res.json(apiSuccess(updated, "Mood updated successfully"));
+  } catch (error) {
+    res.status(400).json(apiFail("Failed to update mood", error.message));
+  }
 };
 
 // GET /api/moods/insights/:userId

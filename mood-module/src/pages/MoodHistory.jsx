@@ -1,20 +1,32 @@
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
+import StatsCard from "../components/StatsCard";
 import AverageIcon from "../assets/AverageIcon";
 import HistoryIcon from "../assets/HistoryIcon";
 import InsightIcon from "../assets/InsightIcon";
 import { useMoodHistoryData } from "../hooks/useMood";
 import { moodMap } from "../constants/moodMap";
+import { calculateDailyAverage, calculateSevenDayAverage } from "../utils/scoreEngine";
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const moodVisual = {
-  terrible: { color: "#DC2626", label: "Terrible" },
-  sad: { color: "#F97316", label: "Sad" },
-  okay: { color: "#EAB308", label: "Okay" },
-  good: { color: "#3B82F6", label: "Good" },
-  great: { color: "#16A34A", label: "Great" },
+  great: { color: "#86D39A", label: "Great" },
+  good: { color: "#8EC5FF", label: "Good" },
+  okay: { color: "#F3D36B", label: "Okay" },
+  sad: { color: "#F6B26B", label: "Sad" },
+  terrible: { color: "#F39CA0", label: "Terrible" },
+};
+
+const factorVisual = {
+  sleep: "#5B8DEF",
+  anxiety: "#EF6B73",
+  energy: "#57C785",
+  stress: "#F4A261",
+  focus: "#A78BFA",
+  motivation: "#A78BFA",
+  social: "#8EC5FF",
 };
 
 const getDateKey = (date) => {
@@ -46,26 +58,22 @@ const formatPct = (value) => {
   return `${n}%`;
 };
 
-const SummaryCard = ({ icon: Icon, title, value, subtitle }) => {
-  return (
-    <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-100">
-      <div className="flex items-center gap-3">
-        <div
-          className="w-12 h-12 rounded-full flex items-center justify-center relative"
-          style={{ backgroundColor: "rgba(12, 91, 213, 0.14)" }}
-        >
-          <div className="absolute inset-0 rounded-full bg-gradient-to-br from-white/30 to-transparent" />
-          <Icon className="w-6 h-6 text-[#0C5BD5] relative z-10" />
-        </div>
+const clampPct = (value) => {
+  const n = Number(value || 0);
+  if (Number.isNaN(n)) return 0;
+  return Math.max(0, Math.min(100, Math.abs(Math.round(n))));
+};
 
-        <div className="flex-1">
-          <p className="text-sm text-gray-500">{title}</p>
-          <p className="text-2xl font-bold text-gray-800 mt-1">{value}</p>
-          {subtitle && <p className="text-xs text-gray-500 mt-1">{subtitle}</p>}
-        </div>
-      </div>
-    </div>
-  );
+const getFactorKey = (label) => {
+  const key = String(label || "").toLowerCase();
+  if (key.includes("sleep")) return "sleep";
+  if (key.includes("anxiety")) return "anxiety";
+  if (key.includes("energy")) return "energy";
+  if (key.includes("stress")) return "stress";
+  if (key.includes("focus")) return "focus";
+  if (key.includes("motivation")) return "motivation";
+  if (key.includes("social")) return "social";
+  return "focus";
 };
 
 const MoodHistory = () => {
@@ -120,7 +128,7 @@ const MoodHistory = () => {
       const items = groupedByDate[key] || [];
       const avgMood =
         items.length > 0
-          ? items.reduce((sum, item) => sum + (moodMap[item.mood] || 0), 0) / items.length
+          ? calculateDailyAverage(items)
           : 0;
 
       days.push({
@@ -139,7 +147,7 @@ const MoodHistory = () => {
   if (moodHistoryLoading) {
     return (
       <div className="flex bg-gray-50 min-h-screen">
-        <Sidebar activePage="Appointment History" collapsed={collapsed} setCollapsed={setCollapsed} />
+        <Sidebar activePage="Mood Track" collapsed={collapsed} setCollapsed={setCollapsed} />
         <main className={`flex-1 transition-all duration-300 ${collapsed ? "ml-20" : "ml-64"} p-8`}>
           <div className="h-[70vh] flex items-center justify-center text-gray-500">Loading mood history...</div>
         </main>
@@ -150,7 +158,7 @@ const MoodHistory = () => {
   if (moodHistoryError) {
     return (
       <div className="flex bg-gray-50 min-h-screen">
-        <Sidebar activePage="Appointment History" collapsed={collapsed} setCollapsed={setCollapsed} />
+        <Sidebar activePage="Mood Track" collapsed={collapsed} setCollapsed={setCollapsed} />
         <main className={`flex-1 transition-all duration-300 ${collapsed ? "ml-20" : "ml-64"} p-8`}>
           <div className="h-[70vh] flex items-center justify-center text-red-600">{moodHistoryError}</div>
         </main>
@@ -162,10 +170,31 @@ const MoodHistory = () => {
   const recovery = insights?.recoveryProgress;
   const moodDistribution = insights?.moodDistribution || {};
   const totalDistribution = Object.values(moodDistribution).reduce((sum, n) => sum + n, 0);
+  
+  // Calculate 7-day average correctly from all entries (not from daily averages)
+  const last7Days = new Date();
+  last7Days.setHours(0, 0, 0, 0);
+  last7Days.setDate(last7Days.getDate() - 6);
+  
+  const last7DaysEntries = entries.filter((m) => {
+    const d = new Date(m.createdAt);
+    return d >= last7Days && d <= new Date(last7Days.getTime() + 7 * 86400000);
+  });
+  
+  const sevenDayAverageScore = calculateSevenDayAverage(last7DaysEntries);
+  const recoveryMetrics = [
+    { key: "Sleep Quality", value: recovery?.sleepQualityIncreasePct, factor: "sleep" },
+    { key: "Anxiety Level", value: recovery?.anxietyLevelDecreasePct, factor: "anxiety" },
+    { key: "Stress Level", value: recovery?.stressLevelDecreasePct, factor: "stress" },
+    { key: "Energy Level", value: recovery?.energyLevelIncreasePct, factor: "energy" },
+    { key: "Motivation", value: recovery?.motivationLevelIncreasePct, factor: "motivation" },
+    { key: "Focus Level", value: recovery?.focusLevelIncreasePct, factor: "focus" },
+    { key: "Social Interaction", value: recovery?.socialInteractionIncreasePct, factor: "social" },
+  ];
 
   return (
     <div className="flex bg-gray-50 min-h-screen">
-      <Sidebar activePage="Appointment History" collapsed={collapsed} setCollapsed={setCollapsed} />
+      <Sidebar activePage="Mood Track" collapsed={collapsed} setCollapsed={setCollapsed} />
 
       <main className={`flex-1 transition-all duration-300 ${collapsed ? "ml-20" : "ml-64"} p-8`}>
         <div className="flex items-center justify-between mb-8">
@@ -207,22 +236,21 @@ const MoodHistory = () => {
 
         {viewMode === "chart" && (
           <>
-        <div className="grid md:grid-cols-3 gap-4 mb-6">
-          <SummaryCard
+        <div className="grid md:grid-cols-3 gap-6 mb-8">
+          <StatsCard
             icon={AverageIcon}
-            title="Avg Mood (7d)"
-            value={`${weeklySummary?.averageMoodScore ?? 0}/10`}
+            title="7-Day Average"
+            value={`${sevenDayAverageScore}/10`}
           />
-          <SummaryCard
+          <StatsCard
             icon={HistoryIcon}
-            title="Total Check-ins (7d)"
-            value={weeklySummary?.totalCheckIns ?? 0}
+            title="Check-ins (7d)"
+            value={last7DaysEntries.length}
           />
-          <SummaryCard
+          <StatsCard
             icon={InsightIcon}
             title="Best Day"
             value={weeklySummary?.bestDay?.day || "-"}
-            subtitle={weeklySummary?.bestDay?.date || "No data"}
           />
         </div>
 
@@ -237,8 +265,11 @@ const MoodHistory = () => {
               <div key={item.date} className="flex flex-col items-center">
                 <div className="w-full max-w-[42px] h-[120px] bg-[#E9F0FB] rounded-xl relative overflow-hidden">
                   <div
-                    className="absolute left-0 bottom-0 w-full bg-[#0C5BD5] rounded-xl transition-all duration-500"
-                    style={{ height: `${Math.max(4, (item.averageMoodScore / 10) * 100)}%` }}
+                    className="absolute left-0 bottom-0 w-full rounded-xl transition-all duration-500"
+                    style={{
+                      height: `${Math.max(4, (item.averageMoodScore / 10) * 100)}%`,
+                      background: "linear-gradient(180deg, #0C5BD5 0%, #0A4AB0 100%)",
+                    }}
                   />
                 </div>
                 <p className="text-xs text-gray-500 mt-2">{item.day}</p>
@@ -252,44 +283,33 @@ const MoodHistory = () => {
           <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
             <h2 className="text-lg font-semibold text-gray-800 mb-4">Recovery Progress</h2>
             <div className="space-y-3 text-sm mb-4">
-              <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+              <div className="flex items-center justify-between p-3 bg-[#EAF1FF] rounded-lg border border-[#CFE0FF]">
                 <span className="text-gray-700 font-medium">Overall Recovery Score</span>
-                <span className="font-bold text-blue-600">{recovery?.currentAverages?.overallRecovery ?? 0}/100</span>
+                <span className="font-bold text-[#0C5BD5]">{recovery?.currentAverages?.overallRecovery ?? 0}/100</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-gray-600">Overall Change</span>
                 <span className="font-semibold text-gray-900">{formatPct(recovery?.overallRecoveryChangePct)}</span>
               </div>
             </div>
-            <div className="space-y-2 text-xs">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Sleep Quality</span>
-                <span className="font-semibold text-green-600">{formatPct(recovery?.sleepQualityIncreasePct)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Anxiety Level</span>
-                <span className="font-semibold text-blue-600">{formatPct(recovery?.anxietyLevelDecreasePct)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Stress Level</span>
-                <span className="font-semibold text-orange-600">{formatPct(recovery?.stressLevelDecreasePct)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Energy Level</span>
-                <span className="font-semibold text-purple-600">{formatPct(recovery?.energyLevelIncreasePct)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Motivation</span>
-                <span className="font-semibold text-indigo-600">{formatPct(recovery?.motivationLevelIncreasePct)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Focus Level</span>
-                <span className="font-semibold text-cyan-600">{formatPct(recovery?.focusLevelIncreasePct)}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600">Social Interaction</span>
-                <span className="font-semibold text-pink-600">{formatPct(recovery?.socialInteractionIncreasePct)}</span>
-              </div>
+            <div className="space-y-3 text-xs">
+              {recoveryMetrics.map((metric) => {
+                const pct = clampPct(metric.value);
+                return (
+                  <div key={metric.key}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-gray-600">{metric.key}</span>
+                      <span className="font-semibold text-[#0C5BD5]">{formatPct(metric.value)}</span>
+                    </div>
+                    <div className="h-2 rounded-full bg-[#E9F0FB] overflow-hidden">
+                      <div
+                        className="h-full rounded-full"
+                        style={{ width: `${pct}%`, backgroundColor: factorVisual[metric.factor] || "#5B8DEF" }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -302,15 +322,15 @@ const MoodHistory = () => {
                 return (
                   <div key={key}>
                     <div className="flex items-center justify-between text-sm mb-1">
-                      <span className="font-medium" style={{ color: moodVisual[key].color }}>
+                      <span className="font-medium text-gray-700">
                         {moodVisual[key].label}
                       </span>
-                      <span className="text-gray-600">{count} ({pct}%)</span>
+                      <span className="text-[#0C5BD5] font-semibold">{count} ({pct}%)</span>
                     </div>
-                    <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
+                    <div className="h-2 rounded-full bg-[#E9F0FB] overflow-hidden">
                       <div
                         className="h-full rounded-full"
-                        style={{ width: `${pct}%`, backgroundColor: moodVisual[key].color }}
+                        style={{ width: `${pct}%`, backgroundColor: moodVisual[key]?.color || "#8EC5FF" }}
                       />
                     </div>
                   </div>

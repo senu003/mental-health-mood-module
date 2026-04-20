@@ -45,6 +45,27 @@ const patternSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const correlationSchema = new mongoose.Schema(
+  {
+    type: { type: String, default: "" },
+    detected: { type: Boolean, default: false },
+    message: { type: String, default: "" },
+    matchCount: { type: Number, default: 0 },
+    totalCount: { type: Number, default: 0 },
+    matchPct: { type: Number, default: 0 },
+  },
+  { _id: false }
+);
+
+const dailyInsightSchema = new mongoose.Schema(
+  {
+    date: { type: String, default: "" },
+    message: { type: String, default: "" },
+    highlights: { type: [String], default: [] },
+  },
+  { _id: false }
+);
+
 const insightSchema = new mongoose.Schema(
   {
     userId: {
@@ -75,6 +96,7 @@ const insightSchema = new mongoose.Schema(
       index: true,
     },
     summary: { type: String, default: "" },
+    simpleMessage: { type: String, default: "" },
     overallTrend: { type: String, default: "stable" },
     overallChange: { type: Number, default: 0 },
     moodTrend: { type: String, default: "stable" },
@@ -86,21 +108,56 @@ const insightSchema = new mongoose.Schema(
       type: [patternSchema],
       default: [],
     },
+    correlationInsights: {
+      type: [correlationSchema],
+      default: [],
+    },
+    riskAlerts: {
+      type: [String],
+      default: [],
+    },
     recovery: {
       overallScore: { type: Number, default: 0 },
       change: { type: Number, default: 0 },
+    },
+    weeklyComparison: {
+      thisWeekMoodAvg: { type: Number, default: 0 },
+      lastWeekMoodAvg: { type: Number, default: 0 },
+      moodChangePct: { type: Number, default: 0 },
+      trend: { type: String, default: "stable" },
+      simpleMessage: { type: String, default: "" },
     },
     topFactors: {
       type: [topFactorSchema],
       default: [],
     },
+    topPositiveFactor: {
+      type: factorInsightSchema,
+      default: null,
+    },
+    topNegativeFactor: {
+      type: factorInsightSchema,
+      default: null,
+    },
     factorInsights: {
+      type: [factorInsightSchema],
+      default: [],
+    },
+    factorChanges: {
       type: [factorInsightSchema],
       default: [],
     },
     recommendations: {
       type: [String],
       default: [],
+    },
+    suggestions: {
+      type: [String],
+      default: [],
+    },
+    dailyInsight: {
+      type: dailyInsightSchema,
+      default: () => ({}),
     },
     metrics: {
       type: mongoose.Schema.Types.Mixed,
@@ -121,6 +178,20 @@ const insightSchema = new mongoose.Schema(
       date: { type: String, default: "" },
       score: { type: Number, default: null },
       entries: { type: Number, default: 0 },
+    },
+    peakDays: {
+      bestDay: {
+        day: { type: String, default: "" },
+        date: { type: String, default: "" },
+        score: { type: Number, default: null },
+        entries: { type: Number, default: 0 },
+      },
+      worstDay: {
+        day: { type: String, default: "" },
+        date: { type: String, default: "" },
+        score: { type: Number, default: null },
+        entries: { type: Number, default: 0 },
+      },
     },
     moodDistribution: {
       terrible: { type: Number, default: 0 },

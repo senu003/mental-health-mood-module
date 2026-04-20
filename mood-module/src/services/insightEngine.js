@@ -1,3 +1,11 @@
+import {
+  getMoodValue,
+  getMoodScore100,
+  formatDate,
+  normalize1to100,
+  calculateMentalHealthScore,
+} from "../utils/scoreEngine";
+
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const MOOD_SCORE_100 = {
@@ -79,12 +87,10 @@ const toLevel100 = (value) => {
 
 const invert100 = (value) => 100 - value;
 
-const toMood100 = (mood) => MOOD_SCORE_100[String(mood || "").toLowerCase()] || 60;
+// Use centralized getMoodScore100 from scoreEngine instead
+const toMood100 = getMoodScore100;
 
-const formatDate = (dateLike) => {
-  const d = new Date(dateLike);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-};
+// formatDate is imported from scoreEngine
 
 const average = (values) => {
   if (!values.length) return 0;
@@ -102,26 +108,11 @@ const getTrendFromChange = (change, threshold = 3) => {
   return "stable";
 };
 
-const moodValue10 = (mood) => {
-  const map = { terrible: 2, sad: 4, okay: 6, good: 8, great: 10 };
-  return map[String(mood || "").toLowerCase()] || 5;
-};
+// Use centralized getMoodValue from scoreEngine instead
+const moodValue10 = getMoodValue;
 
-const mentalScore10 = (entry) => {
-  const mood = moodValue10(entry.mood);
-  const sleep = Number(entry.sleepLevel || 5);
-  const energy = Number(entry.energyLevel || 5);
-  const motivation = Number(entry.motivationLevel || 5);
-  const social = Number(entry.socialInteraction || 5);
-  const focus = Number(entry.focusLevel || 5);
-  const anxiety = Number(entry.anxietyLevel || 5);
-  const stress = Number(entry.stressLevel || 5);
-
-  const positive = mood * 0.15 + sleep * 0.12 + energy * 0.1 + motivation * 0.1 + social * 0.1 + focus * 0.08;
-  const negative = anxiety * 0.2 + stress * 0.15;
-  const score = clamp((positive - negative * 0.5) / 0.75, 0, 10);
-  return Number(score.toFixed(1));
-};
+// Use centralized calculateMentalHealthScore from scoreEngine instead
+const mentalScore10 = calculateMentalHealthScore;
 
 const normalizeEntry = (entry) => {
   const sleep = toLevel100(entry.sleepLevel);

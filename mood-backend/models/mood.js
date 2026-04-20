@@ -58,6 +58,10 @@ const moodSchema = new mongoose.Schema(
       max: 10,
       default: 5
     },
+    shareWithDoctor: {
+      type: Boolean,
+      default: false
+    },
     tags: {
       type: [String],
       default: []

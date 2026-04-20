@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from "../components/Sidebar";
 import { useMoodStore } from "../store/moodStore";
+import { updateCheckIn } from "../api/moodApi";
 
 const CheckinSummary = () => {
   const navigate = useNavigate();
@@ -11,6 +12,7 @@ const CheckinSummary = () => {
   const [shareWithDoctor, setShareWithDoctor] = useState(false);
   const [downloadSuccess, setDownloadSuccess] = useState(false);
   const [shareSuccess, setShareSuccess] = useState(false);
+  const [savingSharePreference, setSavingSharePreference] = useState(false);
   const [summaryData, setSummaryData] = useState(null);
 
   // Get dashboard data from Zustand store (includes checkInStreak)
@@ -152,6 +154,30 @@ Streak: ${summaryData.checkInStreak} days`;
     return value >= 7 ? '#10B981' : value >= 4 ? '#0C5BD5' : '#F59E0B';
   };
 
+  const persistSharePreference = async (shouldShare) => {
+    if (!summaryData?.checkInId) {
+      console.error('No checkInId available');
+      return;
+    }
+
+    setSavingSharePreference(true);
+    try {
+      await updateCheckIn(summaryData.checkInId, {
+        shareWithDoctor: shouldShare,
+      });
+    } catch (error) {
+      console.error('Failed to persist shareWithDoctor preference', error);
+    } finally {
+      setSavingSharePreference(false);
+    }
+  };
+
+  const handleShareWithDoctorToggle = async () => {
+    const nextValue = !shareWithDoctor;
+    setShareWithDoctor(nextValue);
+    await persistSharePreference(nextValue);
+  };
+
   return (
     <div className="flex bg-[#F8FAFC] min-h-screen">
       <Sidebar activePage="Mood Track" collapsed={collapsed} setCollapsed={setCollapsed} />
@@ -223,7 +249,8 @@ Streak: ${summaryData.checkInStreak} days`;
               </div>
             </div>
             <button
-              onClick={() => setShareWithDoctor(!shareWithDoctor)}
+              onClick={handleShareWithDoctorToggle}
+              disabled={savingSharePreference}
               className={`relative w-12 h-6 rounded-full transition-all duration-300 ${shareWithDoctor ? 'bg-[#0C5BD5]' : 'bg-gray-300'}`}
             >
               <span
@@ -323,7 +350,7 @@ Streak: ${summaryData.checkInStreak} days`;
               <p className="text-sm text-gray-600 mt-1">We've curated personalized mood fix activities for you</p>
             </div>
             <button 
-              onClick={() => navigate('/mood-fix')}
+              onClick={() => navigate('/mood-fix', { state: { source: 'summary', mood: summaryData?.mood, showLatestOnly: true } })}
               className="px-4 py-2 bg-[#0C5BD5] text-white rounded-lg text-sm font-medium hover:bg-[#0A4AB0] transition-all duration-300 shadow-sm flex items-center gap-1"
             >
               View Suggestion
@@ -344,7 +371,7 @@ Streak: ${summaryData.checkInStreak} days`;
           </button>
 
           <button
-            onClick={() => navigate('/mood-fix')}
+            onClick={() => navigate('/mood-fix', { state: { source: 'summary', mood: summaryData?.mood, showLatestOnly: true } })}
             className="px-5 py-2 bg-[#0C5BD5] text-white rounded-lg text-sm font-medium hover:bg-[#0A4AB0] transition-all duration-300 shadow-sm"
           >
             View Mood Fix Suggestions

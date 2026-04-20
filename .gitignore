@@ -1,0 +1,52 @@
+# Root-level ignores for independent subprojects
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build outputs
+dist/
+**/dist/
+build/
+**/build/
+coverage/
+**/coverage/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Cache and temp
+.cache/
+.tmp/
+tmp/
+
+# Editor and OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Expo / React Native
+**/.expo/
+**/.expo-shared/
+**/.metro-health-check*
+**/web-build/
+
+# Native build artifacts
+**/android/
+**/ios/
+
+# TypeScript build info
+*.tsbuildinfo
